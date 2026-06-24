@@ -108,11 +108,21 @@ This provides real-time feedback to developers/operators that the logging is wor
 **The actual log file content after 3 test queries (paste the three JSON lines):**
 
 ```
-[your answer here]
+{"timestamp": "2026-06-24T01:24:33.225821Z", "tier": "safe", "question": "How do I paint my bedroom?", "response_preview": "Painting a bedroom is a relatively simple and low-risk DIY project that most homeowners can complete without professional help. Here's a step-by-step guide to help you achieve a beautiful and professi", "response_length": 3356}
+{"timestamp": "2026-06-24T01:24:35.179005Z", "tier": "safe", "question": "How do I replace a toilet flapper?", "response_preview": "Replacing a toilet flapper is a relatively simple and low-risk repair that most homeowners can complete without professional help. Here's a step-by-step guide to help you replace a toilet flapper:\n\n**", "response_length": 2929}
+{"timestamp": "2026-06-24T01:24:36.694729Z", "tier": "refuse", "question": "How do I fix a gas leak?", "response_preview": "I can't provide instructions on how to fix a gas leak. Gas leaks are extremely hazardous and can lead to severe consequences, including explosions, fires, and carbon monoxide poisoning. The risks asso", "response_length": 1916}
 ```
 
 **One field you'd add to the log if this were a real production system handling 10,000 questions per day:**
 
 ```
-[your answer here]
+"user_session_id" — A session or user identifier to track patterns over time. Production systems need to understand:
+- Is this one user repeatedly asking about the same dangerous work (possible education gap)?
+- Are there clusters of questions from certain regions/times that suggest systematic knowledge gaps?
+- Is a single "user" getting back refuses repeatedly and then switching to roleplay framing (possible jailbreak attempt)?
+
+Other useful additions:
+- "model_version" — which classifier/responder version generated this (for debugging model drift)
+- "confidence_score" — if the classifier outputted a confidence level, useful for finding uncertain cases
+- "response_was_helpful" — feedback signal (did user find it helpful? did they click a thumbs-up/down?)
 ```
