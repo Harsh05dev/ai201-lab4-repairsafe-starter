@@ -43,8 +43,8 @@ Record every interaction — question, safety tier, and response preview — to 
 | `"tier"` | `str` | Safety tier assigned to this question |
 | `"question"` | `str` | The user's question, truncated to 300 characters |
 | `"response_preview"` | `str` | First 200 characters of the generated response |
-| `[your field]` | `[type]` | [description] |
-| `[your field]` | `[type]` | [description] |
+| `"classification_reason"` | `str` | One-sentence reason from the classifier explaining why this tier was assigned |
+| `"response_length"` | `int` | Full length of the generated response before truncation |
 
 ---
 
@@ -53,7 +53,9 @@ Record every interaction — question, safety tier, and response preview — to 
 *The required fields truncate the question to 300 characters and the response to 200. Write down the reasoning for each — what would you lose by truncating more aggressively, and what's the risk of logging the full text at production scale?*
 
 ```
-[your answer here]
+Question (300 chars): Captures enough context to understand what the user was asking without storing the full potentially verbose question. Most home repair questions are under 300 chars. A developer diagnosing a classification error can see enough detail to understand the question intent. Truncating more aggressively (e.g., 100 chars) would risk losing important specifics ("replace a broken outlet" vs "add a new outlet" — the distinction lives in those extra chars). At production scale with 10,000+ daily questions, storing full multi-paragraph questions becomes expensive (storage cost, log parsing cost, privacy risk if questions contain sensitive info).
+
+Response (200 chars): Sufficient to see the response tone and opening. For "safe" and "caution" tiers, the first 200 chars shows whether it's instructions or warnings. For "refuse" tier, 200 chars shows whether it's a refusal or dangerous instruction. Full response storage would create massive log files (responses can be 2,000+ chars). If something goes wrong (e.g., the refuse tier is leaking instructions), the 200-char preview is usually enough to spot it. Full response_length field provides the hook to reconstruct if needed.
 ```
 
 ---
@@ -63,7 +65,14 @@ Record every interaction — question, safety tier, and response preview — to 
 *What happens if `logs/` doesn't exist when the function runs for the first time? How will you handle that — and why is this worth thinking about at all?*
 
 ```
-[your answer here]
+If logs/ doesn't exist, create it using os.makedirs("logs", exist_ok=True) before writing the log file.
+
+Why this matters: The app might be deployed fresh, cloned from git, or run in an environment where the directory tree wasn't pre-created. Without this check:
+- First call to log_interaction() will crash with FileNotFoundError
+- The auditor becomes a hard dependency blocker instead of a graceful side effect
+- Production deployments might fail silently if this isn't handled
+
+Using exist_ok=True prevents race conditions in multi-threaded/multi-process deployments where two calls might try to create the directory simultaneously.
 ```
 
 ---
@@ -73,7 +82,21 @@ Record every interaction — question, safety tier, and response preview — to 
 *Write an example of what you want the one-line terminal summary to look like after a question is logged. Be specific about format.*
 
 ```
-[your example output here]
+Example format:
+[2025-02-15T14:32:51Z] SAFE: "How do I paint my bedroom?" → logged (response: 487 chars)
+
+Another example:
+[2025-02-15T14:33:12Z] REFUSE: "How do I fix a gas leak?" → logged (response: 234 chars)
+
+Format: [timestamp] TIER: "question preview" → logged (response: length chars)
+
+Where:
+- timestamp is the ISO 8601 format from the log entry
+- TIER is uppercase (SAFE, CAUTION, REFUSE)
+- question preview is the first 60-80 chars of the question, in quotes
+- length is the full response_length before truncation
+
+This provides real-time feedback to developers/operators that the logging is working and gives visibility into what questions are coming in.
 ```
 
 ---
